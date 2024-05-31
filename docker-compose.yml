@@ -1,0 +1,57 @@
+networks:
+  test-network:
+    name: test-network
+
+services:
+  shlink-guard:
+    build: .
+    environment:
+      - PROXY_TARGET=shlink
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.worker.rule=PathPrefix(`/`)
+      - traefik.http.routers.worker.entryPoints=web
+      - traefik.http.services.worker.loadbalancer.server.port=8000
+    deploy:
+      mode: replicated
+      endpoint_mode: dnsrr
+      replicas: 2
+
+  shlink:
+    image: shlinkio/shlink:3
+    environment:
+      - DEFAULT_DOMAIN=priobike.vkw.tu-dresden.de/production/link
+      - IS_HTTPS_ENABLED=true
+      - INITIAL_API_KEY=secret
+      - DB_DRIVER=postgres
+      - DB_NAME=shlink-db
+      - DB_USER=shlink
+      - DB_PASSWORD=secret
+      - DB_HOST=shlink-postgres
+    networks:
+      - test-network
+
+  shlink-postgres:
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=shlink-db
+      - POSTGRES_USER=shlink
+      - POSTGRES_PASSWORD=secret
+    networks:
+      - test-network
+
+  traefik:
+    image: traefik:v2.9
+    hostname: traefik
+    networks:
+      - test-network
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports: 
+      - "80:80"
+      - "8080:8080"
+    command:
+      - --providers.docker
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=test-network
+      - --entryPoints.web.address=:80
