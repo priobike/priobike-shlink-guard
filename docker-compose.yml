@@ -6,7 +6,11 @@ services:
   shlink-guard:
     build: .
     environment:
-      - PROXY_TARGET=shlink
+      # Http cannot be omitted here
+      - PROXY_TARGET=http://shlink:8080
+      - LOGGING_LEVEL=debug
+    networks:
+      - test-network
     labels:
       - traefik.enable=true
       - traefik.http.routers.worker.rule=PathPrefix(`/`)
@@ -20,8 +24,8 @@ services:
   shlink:
     image: shlinkio/shlink:3
     environment:
-      - DEFAULT_DOMAIN=priobike.vkw.tu-dresden.de/production/link
-      - IS_HTTPS_ENABLED=true
+      - DEFAULT_DOMAIN=localhost
+      - IS_HTTPS_ENABLED=false
       - INITIAL_API_KEY=secret
       - DB_DRIVER=postgres
       - DB_NAME=shlink-db
