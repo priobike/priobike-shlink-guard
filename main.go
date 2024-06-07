@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"io"
 	"log"
 	"net/http"
@@ -24,10 +26,21 @@ func checkAndProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// If this is a GET request, we don't need to check anything
+	// If this is a GET request, we only want to allow /rest/v3/short-urls/{code}
 	if r.Method == http.MethodGet {
+		// Check if the URL contains a code
+		code := strings.Split(r.URL.Path, "/rest/v3/short-urls/")
+		if len(code) < 2 {
+			http.Error(w, "Invalid URL", http.StatusBadRequest)
+			return
+		}
+
+		shortlink := code[len(code)-1]
+		if shortlink == "" {
+			http.Error(w, "Invalid URL", http.StatusBadRequest)
+			return
+		}
 		proxy(w, r, nil)
-		return
 	}
 
 	// If this is a POST request, we need to check the content type
@@ -52,10 +65,55 @@ func checkAndProxy(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Invalid body", http.StatusBadRequest)
 			return
 		}
-		
+
+		// Check if the longUrl is a base64 encoded shorcut.
+		// Therefore get the base64 encoded string under longUrl: "https...import/{base64 encoded string}"
+		str := strings.Split(string(body), "import/")
+		if len(str) != 2 {
+			http.Error(w, "Invalid longUrl", http.StatusBadRequest)
+			return
+		}
+
+		str = strings.Split(str[1], "\"")
+		if len(str) < 2 {
+			http.Error(w, "Invalid longUrl", http.StatusBadRequest)
+			return
+		}
+
+		shortcut, err := base64.StdEncoding.DecodeString(str[0])
+		if err != nil {
+			http.Error(w, "Invalid longUrl", http.StatusBadRequest)
+			return
+		}
+
 		// TODO: Make more checks on the body, e.g. validate the JSON structure
 		// and whether the contained code can be parsed as a valid shortcut.
 
+		var jsonMap map[string]interface{}
+		json.Unmarshal([]byte(shortcut), &jsonMap)
+
+		if jsonMap == nil {
+			http.Error(w, "Invalid shortcut", http.StatusBadRequest)
+			return
+		}
+
+		// Check if the JSON contains the required keys
+		if _, ok := jsonMap["type"]; !ok {
+			http.Error(w, "Invalid shortcut", http.StatusBadRequest)
+			return
+		}
+
+		if _, ok := jsonMap["id"]; !ok {
+			http.Error(w, "Invalid shortcut", http.StatusBadRequest)
+			return
+		}
+
+		if jsonMap["waypoint"] == nil && jsonMap["waypoints"] == nil {
+			http.Error(w, "Invalid shortcut", http.StatusBadRequest)
+			return
+		}
+
+		// If the JSON contains the required keys, proxy the request
 		proxy(w, r, body)
 		return
 	}
