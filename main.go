@@ -97,22 +97,67 @@ func checkAndProxy(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Check if the JSON contains the required keys
-		if _, ok := jsonMap["type"]; !ok {
+		// Check the type of the shortcut (e.g. "ShortcutLocation" or "ShortcutRoute")
+		shortcutType := jsonMap["type"]
+
+		if shortcutType == nil {
 			http.Error(w, "Invalid shortcut", http.StatusBadRequest)
 			return
 		}
 
+		if shortcutType != "ShortcutLocation" && shortcutType != "ShortcutRoute" {
+			http.Error(w, "Invalid shortcut type", http.StatusBadRequest)
+			return
+		}
+
+		// Check the common keys for both types
 		if _, ok := jsonMap["id"]; !ok {
 			http.Error(w, "Invalid shortcut", http.StatusBadRequest)
 			return
 		}
 
-		if jsonMap["waypoint"] == nil && jsonMap["waypoints"] == nil {
+		if _, ok := jsonMap["name"]; !ok {
 			http.Error(w, "Invalid shortcut", http.StatusBadRequest)
 			return
 		}
-		
+
+		// Check Shortcut Location JSON individual keys and length
+		if shortcutType == "ShortcutLocation" {
+			print(len(jsonMap))
+			if len(jsonMap) > 4 {
+				http.Error(w, "Invalid shortcut attributes", http.StatusBadRequest)
+				return
+			}
+
+			if _, ok := jsonMap["waypoint"]; !ok {
+				http.Error(w, "Invalid shortcut", http.StatusBadRequest)
+				return
+			}
+		}
+
+		if shortcutType == "ShortcutRoute" {
+			print(len(jsonMap))
+			if len(jsonMap) > 6 {
+				http.Error(w, "Invalid shortcut attributes", http.StatusBadRequest)
+				return
+			}
+
+			if _, ok := jsonMap["waypoints"]; !ok {
+				http.Error(w, "Invalid shortcut", http.StatusBadRequest)
+				return
+			}
+
+			if _, ok := jsonMap["routeTimeText"]; !ok {
+				http.Error(w, "Invalid shortcut", http.StatusBadRequest)
+				return
+			}
+
+			if _, ok := jsonMap["routeLengthText"]; !ok {
+				http.Error(w, "Invalid shortcut", http.StatusBadRequest)
+				return
+			}
+		}
+
 		// If the JSON contains the required keys, proxy the request
 		proxy(w, r, body)
 		return
