@@ -86,7 +86,7 @@ func checkAndProxy(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// TODO: Make more checks on the body, e.g. validate the JSON structure
+		// Make more checks on the body, e.g. validate the JSON structure
 		// and whether the contained code can be parsed as a valid shortcut.
 
 		var jsonMap map[string]interface{}
@@ -112,7 +112,7 @@ func checkAndProxy(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Invalid shortcut", http.StatusBadRequest)
 			return
 		}
-
+		
 		// If the JSON contains the required keys, proxy the request
 		proxy(w, r, body)
 		return
