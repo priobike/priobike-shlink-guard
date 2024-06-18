@@ -248,6 +248,12 @@ func checkAndProxy(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Request: %s %s\n", r.Method, r.URL.Path)
 	}
 
+	// Health check endpoint
+	if r.URL.Path == "/health" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	if !checkRequest(w, r) {
 		http.Error(w, "Invalid", http.StatusBadRequest)
 		return
