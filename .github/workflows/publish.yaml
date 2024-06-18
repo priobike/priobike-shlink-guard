@@ -14,7 +14,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  publish-priobike-cache:
+  test-priobike-shlink-guard:
     runs-on: self-hosted
     container: docker:latest
 
@@ -33,6 +33,18 @@ jobs:
 
       - name: Test
         run: go test -v ./...
+
+  publish-priobike-shlink-guard:
+    runs-on: self-hosted
+    container: docker:latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
       - name: Log in to the container registry
         uses: docker/login-action@v2
