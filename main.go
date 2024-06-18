@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"reflect"
 	"strings"
 )
 
@@ -15,145 +16,283 @@ var (
 	logLevel    = os.Getenv("LOG_LEVEL")
 )
 
+func checkRequest(w http.ResponseWriter, r *http.Request) bool {
+	// Check if the request is to /rest/v3/short-urls
+	if !strings.Contains(r.URL.Path, "/rest/v3/short-urls") {
+		if logLevel == "debug" {
+			log.Printf("Invalid URL, end point not supported: %s\n", r.URL.Path)
+		}
+		return false
+	}
+
+	return true
+}
+
+func checkGetRequest(w http.ResponseWriter, r *http.Request) bool {
+	// Check if the URL contains a code
+	code := strings.Split(r.URL.Path, "/rest/v3/short-urls/")
+	if len(code) < 2 {
+		if logLevel == "debug" {
+			log.Printf("Invalid URL, missing short link, : %s\n", r.URL.Path)
+		}
+		return false
+	}
+
+	// Check if the code is empty
+	shortlink := code[len(code)-1]
+	if shortlink == "" {
+		if logLevel == "debug" {
+			log.Printf("Invalid URL, short link is empty: %s\n", r.URL.Path)
+		}
+		return false
+	}
+
+	return true
+}
+
+func checkBody(r *http.Request) (bool, []byte, string) {
+	// Check if the content type is application/json
+	if r.Header.Get("Content-Type") != "application/json" {
+		if logLevel == "debug" {
+			log.Printf("Invalid content type: %s\n", r.Header.Get("Content-Type"))
+		}
+		return false, nil, ""
+	}
+	if r.Body == nil {
+		if logLevel == "debug" {
+			log.Printf("Empty body\n")
+		}
+		return false, nil, ""
+	}
+	// Read the body
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		if logLevel == "debug" {
+			log.Printf("Error reading body\n")
+		}
+		return false, nil, ""
+	}
+
+	var parsedBody map[string]interface{}
+	json.Unmarshal([]byte(body), &parsedBody)
+
+	if parsedBody == nil {
+		if logLevel == "debug" {
+			log.Printf("Invalid body, JSON could not be parsed\n")
+		}
+		return false, nil, ""
+	}
+
+	// Check if the body contains the key "longUrl"
+	if _, ok := parsedBody["longUrl"]; !ok {
+		if logLevel == "debug" {
+			log.Printf("Invalid body, missing longUrl key\n")
+		}
+		return false, nil, ""
+	}
+
+	// Check if the longUrl is a string.
+	longUrl := parsedBody["longUrl"]
+	if longUrl == nil {
+		if logLevel == "debug" {
+			log.Printf("Invalid body, longUrl is nil\n")
+		}
+		return false, nil, ""
+	}
+	if reflect.TypeOf(longUrl).Kind() != reflect.String {
+		if logLevel == "debug" {
+			log.Printf("Invalid body, longUrl is not a string\n")
+		}
+		return false, nil, ""
+	}
+
+	longUrlS := longUrl.(string)
+
+	return true, body, longUrlS
+}
+
+func checkLongUrl(longUrl string) (bool, map[string]interface{}) {
+	// Check if the longUrl is valid.
+	if !strings.Contains(longUrl, "import/") {
+		if logLevel == "debug" {
+			log.Printf("Invalid body, longUrl does not contain 'import/'\n")
+		}
+		return false, nil
+	}
+
+	urlParts := strings.Split(longUrl, "import/")
+	if len(urlParts) < 2 {
+		if logLevel == "debug" {
+			log.Printf("Invalid body, longUrl does not contain part after import/\n")
+		}
+		return false, nil
+	}
+
+	base64Str := urlParts[len(urlParts)-1]
+
+	shortcut, err := base64.StdEncoding.DecodeString(base64Str)
+	if err != nil {
+		if logLevel == "debug" {
+			log.Printf("Invalid body, base64 decode failed\n")
+		}
+		return false, nil
+	}
+
+	var jsonMap map[string]interface{}
+	unmarshErr := json.Unmarshal([]byte(shortcut), &jsonMap)
+
+	if unmarshErr != nil {
+		if logLevel == "debug" {
+			log.Printf("Invalid body, base64v JSON could not be parsed\n")
+		}
+		return false, nil
+	}
+
+	return true, jsonMap
+}
+
+func checkShortcut(jsonMap map[string]interface{}) (bool, string) {
+	if jsonMap == nil {
+		if logLevel == "debug" {
+			log.Printf("Invalid body, JSON could not be parsed\n")
+		}
+		return false, ""
+	}
+
+	// Check the type of the shortcut (e.g. "ShortcutLocation" or "ShortcutRoute")
+	shortcutType := jsonMap["type"]
+
+	if shortcutType == nil {
+		if logLevel == "debug" {
+			log.Printf("Invalid body, missing type key\n")
+		}
+		return false, ""
+	}
+
+	if shortcutType != "ShortcutLocation" && shortcutType != "ShortcutRoute" {
+		if logLevel == "debug" {
+			log.Printf("Invalid body, invalid type key\n")
+		}
+		return false, ""
+	}
+
+	if _, ok := jsonMap["id"]; !ok {
+		if logLevel == "debug" {
+			log.Printf("Invalid body, missing id key\n")
+		}
+		return false, ""
+	}
+
+	if _, ok := jsonMap["name"]; !ok {
+		if logLevel == "debug" {
+			log.Printf("Invalid body, missing name key\n")
+		}
+		return false, ""
+	}
+
+	return true, shortcutType.(string)
+}
+
+func checkLocationShortcut(shortcut map[string]interface{}) bool {
+	if len(shortcut) > 4 {
+		if logLevel == "debug" {
+			log.Printf("Invalid body, too many keys\n")
+		}
+		return false
+	}
+
+	if _, ok := shortcut["waypoint"]; !ok {
+		if logLevel == "debug" {
+			log.Printf("Invalid body, missing waypoint key\n")
+		}
+		return false
+	}
+
+	return true
+}
+
+func checkRouteShortcut(shortcut map[string]interface{}) bool {
+	if len(shortcut) > 6 {
+		if logLevel == "debug" {
+			log.Printf("Invalid body, too many keys\n")
+		}
+		return false
+	}
+
+	if _, ok := shortcut["waypoints"]; !ok {
+		if logLevel == "debug" {
+			log.Printf("Invalid body, missing waypoints key\n")
+		}
+		return false
+	}
+
+	if _, ok := shortcut["routeTimeText"]; !ok {
+		if logLevel == "debug" {
+			log.Printf("Invalid body, missing routeTimeText key\n")
+		}
+		return false
+	}
+
+	if _, ok := shortcut["routeLengthText"]; !ok {
+		if logLevel == "debug" {
+			log.Printf("Invalid body, missing routeLengthText key\n")
+		}
+		return false
+	}
+
+	return true
+}
+
 func checkAndProxy(w http.ResponseWriter, r *http.Request) {
 	if logLevel == "debug" {
 		log.Printf("Request: %s %s\n", r.Method, r.URL.Path)
 	}
 
-	// Check if the request is to /rest/v3/short-urls
-	if !strings.Contains(r.URL.Path, "/rest/v3/short-urls") {
-		http.Error(w, "Invalid URL", http.StatusBadRequest)
+	if !checkRequest(w, r) {
+		http.Error(w, "Invalid", http.StatusBadRequest)
 		return
 	}
 
 	// If this is a GET request, we only want to allow /rest/v3/short-urls/{code}
 	if r.Method == http.MethodGet {
-		// Check if the URL contains a code
-		code := strings.Split(r.URL.Path, "/rest/v3/short-urls/")
-		if len(code) < 2 {
-			http.Error(w, "Invalid URL", http.StatusBadRequest)
-			return
-		}
-
-		shortlink := code[len(code)-1]
-		if shortlink == "" {
-			http.Error(w, "Invalid URL", http.StatusBadRequest)
+		if !checkGetRequest(w, r) {
+			http.Error(w, "Invalid", http.StatusBadRequest)
 			return
 		}
 		proxy(w, r, nil)
+		return
 	}
 
-	// If this is a POST request, we need to check the content type
+	// If this is a POST request, we need to check the content
 	if r.Method == http.MethodPost {
-		// Check if the content type is application/json
-		if r.Header.Get("Content-Type") != "application/json" {
-			http.Error(w, "Invalid content type", http.StatusBadRequest)
-			return
-		}
-		if r.Body == nil {
-			http.Error(w, "Empty body", http.StatusBadRequest)
-			return
-		}
-		// Read the body
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, "Error reading body", http.StatusInternalServerError)
-			return
-		}
-		// Check if the body contains the key "longUrl"
-		if !strings.Contains(string(body), "longUrl") {
-			http.Error(w, "Invalid body", http.StatusBadRequest)
+		ok, body, longUrl := checkBody(r)
+		if !ok {
+			http.Error(w, "Invalid", http.StatusBadRequest)
 			return
 		}
 
-		// Check if the longUrl is a base64 encoded shorcut.
-		// Therefore get the base64 encoded string under longUrl: "https...import/{base64 encoded string}"
-		str := strings.Split(string(body), "import/")
-		if len(str) != 2 {
-			http.Error(w, "Invalid longUrl", http.StatusBadRequest)
+		ok, jsonMap := checkLongUrl(longUrl)
+		if !ok {
+			http.Error(w, "Invalid", http.StatusBadRequest)
 			return
 		}
 
-		str = strings.Split(str[1], "\"")
-		if len(str) < 2 {
-			http.Error(w, "Invalid longUrl", http.StatusBadRequest)
+		ok, shortcutType := checkShortcut(jsonMap)
+		if !ok {
+			http.Error(w, "Invalid", http.StatusBadRequest)
 			return
 		}
 
-		shortcut, err := base64.StdEncoding.DecodeString(str[0])
-		if err != nil {
-			http.Error(w, "Invalid longUrl", http.StatusBadRequest)
-			return
-		}
-
-		// Make more checks on the body, e.g. validate the JSON structure
-		// and whether the contained code can be parsed as a valid shortcut.
-
-		var jsonMap map[string]interface{}
-		json.Unmarshal([]byte(shortcut), &jsonMap)
-
-		if jsonMap == nil {
-			http.Error(w, "Invalid shortcut", http.StatusBadRequest)
-			return
-		}
-
-		// Check the type of the shortcut (e.g. "ShortcutLocation" or "ShortcutRoute")
-		shortcutType := jsonMap["type"]
-
-		if shortcutType == nil {
-			http.Error(w, "Invalid shortcut", http.StatusBadRequest)
-			return
-		}
-
-		if shortcutType != "ShortcutLocation" && shortcutType != "ShortcutRoute" {
-			http.Error(w, "Invalid shortcut type", http.StatusBadRequest)
-			return
-		}
-
-		// Check the common keys for both types
-		if _, ok := jsonMap["id"]; !ok {
-			http.Error(w, "Invalid shortcut", http.StatusBadRequest)
-			return
-		}
-
-		if _, ok := jsonMap["name"]; !ok {
-			http.Error(w, "Invalid shortcut", http.StatusBadRequest)
-			return
-		}
-
-		// Check Shortcut Location JSON individual keys and length
 		if shortcutType == "ShortcutLocation" {
-			print(len(jsonMap))
-			if len(jsonMap) > 4 {
-				http.Error(w, "Invalid shortcut attributes", http.StatusBadRequest)
-				return
-			}
-
-			if _, ok := jsonMap["waypoint"]; !ok {
-				http.Error(w, "Invalid shortcut", http.StatusBadRequest)
+			if !checkLocationShortcut(jsonMap) {
+				http.Error(w, "Invalid", http.StatusBadRequest)
 				return
 			}
 		}
 
 		if shortcutType == "ShortcutRoute" {
-			print(len(jsonMap))
-			if len(jsonMap) > 6 {
-				http.Error(w, "Invalid shortcut attributes", http.StatusBadRequest)
-				return
-			}
-
-			if _, ok := jsonMap["waypoints"]; !ok {
-				http.Error(w, "Invalid shortcut", http.StatusBadRequest)
-				return
-			}
-
-			if _, ok := jsonMap["routeTimeText"]; !ok {
-				http.Error(w, "Invalid shortcut", http.StatusBadRequest)
-				return
-			}
-
-			if _, ok := jsonMap["routeLengthText"]; !ok {
-				http.Error(w, "Invalid shortcut", http.StatusBadRequest)
+			if !checkRouteShortcut(jsonMap) {
+				http.Error(w, "Invalid", http.StatusBadRequest)
 				return
 			}
 		}

@@ -8,7 +8,7 @@ services:
     environment:
       # Http cannot be omitted here
       - PROXY_TARGET=http://shlink:8080
-      - LOGGING_LEVEL=debug
+      - LOG_LEVEL=debug
     networks:
       - test-network
     labels:
