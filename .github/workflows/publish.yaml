@@ -37,6 +37,7 @@ jobs:
   publish-priobike-shlink-guard:
     runs-on: self-hosted
     container: docker:latest
+    needs: test-priobike-shlink-guard
 
     permissions:
       contents: read
