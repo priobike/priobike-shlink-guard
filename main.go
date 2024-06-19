@@ -51,13 +51,6 @@ func checkGetRequest(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func checkBody(r *http.Request) (bool, []byte, string) {
-	// Check if the content type is application/json
-	if r.Header.Get("Content-Type") != "application/json" {
-		if logLevel == "debug" {
-			log.Printf("Invalid content type: %s\n", r.Header.Get("Content-Type"))
-		}
-		return false, nil, ""
-	}
 	if r.Body == nil {
 		if logLevel == "debug" {
 			log.Printf("Empty body\n")

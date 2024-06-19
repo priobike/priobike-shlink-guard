@@ -52,7 +52,6 @@ func TestCheckBodyValid(t *testing.T) {
 	req := httptest.NewRequest("POST", "/rest/v3/short-urls", nil)
 	longUrl := "http://example.com/drth5"
 	bodyJson := fmt.Sprintf(`{"longUrl": "%s"}`, longUrl)
-	req.Header.Set("Content-Type", "application/json")
 	req.Body = io.NopCloser(strings.NewReader(bodyJson))
 	ok, _, longUrlReturn := checkBody(req)
 	if !ok {
@@ -63,20 +62,8 @@ func TestCheckBodyValid(t *testing.T) {
 	}
 }
 
-func TestCheckBodyInvalidContentType(t *testing.T) {
-	req := httptest.NewRequest("POST", "/rest/v3/short-urls", nil)
-	body := "aergfwrger"
-	req.Header.Set("Content-Type", "text/plain")
-	req.Body = io.NopCloser(strings.NewReader(body))
-	ok, _, _ := checkBody(req)
-	if ok {
-		t.Errorf("Expected false, got true")
-	}
-}
-
 func TestCheckBodyMissingBody(t *testing.T) {
 	req := httptest.NewRequest("POST", "/rest/v3/short-urls", nil)
-	req.Header.Set("Content-Type", "application/json")
 	ok, _, _ := checkBody(req)
 	if ok {
 		t.Errorf("Expected false, got true")
@@ -86,7 +73,6 @@ func TestCheckBodyMissingBody(t *testing.T) {
 func TestCheckBodyInvalidJson(t *testing.T) {
 	req := httptest.NewRequest("POST", "/rest/v3/short-urls", nil)
 	body := "aergfwrger"
-	req.Header.Set("Content-Type", "application/json")
 	req.Body = io.NopCloser(strings.NewReader(body))
 	ok, _, _ := checkBody(req)
 	if ok {
@@ -97,7 +83,6 @@ func TestCheckBodyInvalidJson(t *testing.T) {
 func TestCheckBodyMissingLongUrl(t *testing.T) {
 	req := httptest.NewRequest("POST", "/rest/v3/short-urls", nil)
 	body := `{longU: "http://example.com/drth5"}`
-	req.Header.Set("Content-Type", "application/json")
 	req.Body = io.NopCloser(strings.NewReader(body))
 	ok, _, _ := checkBody(req)
 	if ok {
@@ -108,7 +93,6 @@ func TestCheckBodyMissingLongUrl(t *testing.T) {
 func TestCheckBodyLongUrlNotString(t *testing.T) {
 	req := httptest.NewRequest("POST", "/rest/v3/short-urls", nil)
 	body := `{longUrl: 123}`
-	req.Header.Set("Content-Type", "application/json")
 	req.Body = io.NopCloser(strings.NewReader(body))
 	ok, _, _ := checkBody(req)
 	if ok {
