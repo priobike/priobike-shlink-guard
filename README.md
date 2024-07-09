@@ -15,6 +15,11 @@ Run locally using Docker:
 docker-compose up
 ```
 
+Configuration is done via environment variables. The following environment variables are available:
+
+- `PROXY_TARGET` - The URL of the Shlink service
+- `LOG_LEVEL` - Differentiates between `debug` or not `debug` log level
+
 ## CLI
 
 Run tests:
