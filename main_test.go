@@ -8,46 +8,6 @@ import (
 	"testing"
 )
 
-func TestCheckRequestValid(t *testing.T) {
-	req := httptest.NewRequest("GET", "/rest/v3/short-urls", nil)
-	w := httptest.NewRecorder()
-	if !checkRequest(w, req) {
-		t.Errorf("Expected true, got false")
-	}
-}
-
-func TestCheckRequestInvalidEndpoint(t *testing.T) {
-	req := httptest.NewRequest("GET", "/rest/v3/short-url", nil)
-	w := httptest.NewRecorder()
-	if checkRequest(w, req) {
-		t.Errorf("Expected false, got true")
-	}
-}
-
-func TestCheckGetRequestValid(t *testing.T) {
-	req := httptest.NewRequest("GET", "/rest/v3/short-urls/123", nil)
-	w := httptest.NewRecorder()
-	if !checkGetRequest(w, req) {
-		t.Errorf("Expected true, got false")
-	}
-}
-
-func TestCheckGetRequestMissingShortlink(t *testing.T) {
-	req := httptest.NewRequest("GET", "/rest/v3/short-urls", nil)
-	w := httptest.NewRecorder()
-	if checkGetRequest(w, req) {
-		t.Errorf("Expected false, got true")
-	}
-}
-
-func TestCheckGetRequestEmptyShortlink(t *testing.T) {
-	req := httptest.NewRequest("GET", "/rest/v3/short-urls/", nil)
-	w := httptest.NewRecorder()
-	if checkGetRequest(w, req) {
-		t.Errorf("Expected false, got true")
-	}
-}
-
 func TestCheckBodyValid(t *testing.T) {
 	req := httptest.NewRequest("POST", "/rest/v3/short-urls", nil)
 	longUrl := "http://example.com/drth5"

@@ -16,40 +16,6 @@ var (
 	logLevel    = os.Getenv("LOG_LEVEL")
 )
 
-func checkRequest(w http.ResponseWriter, r *http.Request) bool {
-	// Check if the request is to /rest/v3/short-urls
-	if !strings.Contains(r.URL.Path, "/rest/v3/short-urls") {
-		if logLevel == "debug" {
-			log.Printf("Invalid URL, end point not supported: %s\n", r.URL.Path)
-		}
-		return false
-	}
-
-	return true
-}
-
-func checkGetRequest(w http.ResponseWriter, r *http.Request) bool {
-	// Check if the URL contains a code
-	code := strings.Split(r.URL.Path, "/rest/v3/short-urls/")
-	if len(code) < 2 {
-		if logLevel == "debug" {
-			log.Printf("Invalid URL, missing short link, : %s\n", r.URL.Path)
-		}
-		return false
-	}
-
-	// Check if the code is empty
-	shortlink := code[len(code)-1]
-	if shortlink == "" {
-		if logLevel == "debug" {
-			log.Printf("Invalid URL, short link is empty: %s\n", r.URL.Path)
-		}
-		return false
-	}
-
-	return true
-}
-
 func checkBody(r *http.Request) (bool, []byte, string) {
 	if r.Body == nil {
 		if logLevel == "debug" {
@@ -247,17 +213,9 @@ func checkAndProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !checkRequest(w, r) {
-		http.Error(w, "Invalid", http.StatusBadRequest)
-		return
-	}
-
-	// If this is a GET request, we only want to allow /rest/v3/short-urls/{code}
+	// If this is a GET request, we don't check any thing
+    // (the traefik reverse proxy already handles that we only receive requests on valid endpoints) 
 	if r.Method == http.MethodGet {
-		if !checkGetRequest(w, r) {
-			http.Error(w, "Invalid", http.StatusBadRequest)
-			return
-		}
 		proxy(w, r, nil)
 		return
 	}
