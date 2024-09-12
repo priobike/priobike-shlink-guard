@@ -282,7 +282,7 @@ func proxy(w http.ResponseWriter, r *http.Request, body []byte) {
 		for _, value := range values {
 			proxyReq.Header.Add(key, value)
 			if logLevel == "debug" {
-				log.Printf("Header: %s: %s\n", key, value)
+				log.Printf("Request Header: %s: %s\n", key, value)
 			}
 		}
 	}
@@ -307,7 +307,7 @@ func proxy(w http.ResponseWriter, r *http.Request, body []byte) {
 		for _, value := range values {
 			w.Header().Add(key, value)
 			if logLevel == "debug" {
-				log.Printf("Header: %s: %s\n", key, value)
+				log.Printf("Response Header: %s: %s\n", key, value)
 			}
 		}
 	}
