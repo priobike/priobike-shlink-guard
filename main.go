@@ -214,7 +214,7 @@ func checkAndProxy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// If this is a GET request, we don't check any thing
-    // (the traefik reverse proxy already handles that we only receive requests on valid endpoints) 
+	// (the traefik reverse proxy already handles that we only receive requests on valid endpoints)
 	if r.Method == http.MethodGet {
 		proxy(w, r, nil)
 		return
@@ -288,7 +288,11 @@ func proxy(w http.ResponseWriter, r *http.Request, body []byte) {
 	}
 
 	// Perform the request to the target server
-	client := &http.Client{}
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 	resp, err := client.Do(proxyReq)
 	if err != nil {
 		http.Error(w, "Error performing request", http.StatusInternalServerError)
