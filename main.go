@@ -300,8 +300,6 @@ func proxy(w http.ResponseWriter, r *http.Request, body []byte) {
 	}
 	defer resp.Body.Close()
 
-	// Copy the response from the target server to the original response
-	w.WriteHeader(resp.StatusCode)
 	// Copy headers from the response to the original request
 	for key, values := range resp.Header {
 		for _, value := range values {
@@ -311,6 +309,8 @@ func proxy(w http.ResponseWriter, r *http.Request, body []byte) {
 			}
 		}
 	}
+	// Copy the response from the target server to the original response
+	w.WriteHeader(resp.StatusCode)
 	io.Copy(w, resp.Body)
 
 	if logLevel == "debug" {
