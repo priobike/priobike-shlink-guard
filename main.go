@@ -302,6 +302,15 @@ func proxy(w http.ResponseWriter, r *http.Request, body []byte) {
 
 	// Copy the response from the target server to the original response
 	w.WriteHeader(resp.StatusCode)
+	// Copy headers from the response to the original request
+	for key, values := range resp.Header {
+		for _, value := range values {
+			w.Header().Add(key, value)
+			if logLevel == "debug" {
+				log.Printf("Header: %s: %s\n", key, value)
+			}
+		}
+	}
 	io.Copy(w, resp.Body)
 
 	if logLevel == "debug" {
