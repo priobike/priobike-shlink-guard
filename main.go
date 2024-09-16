@@ -289,6 +289,7 @@ func proxy(w http.ResponseWriter, r *http.Request, body []byte) {
 
 	// Perform the request to the target server
 	client := &http.Client{
+        // Don't follow redirects. We want the client (browser/app) to resolve the redirects.
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
